@@ -1,0 +1,161 @@
+import hashlib
+import random
+from datetime import datetime
+from qiskit import QuantumCircuit, Aer, execute
+
+# Define the QCChain class with its methods
+class QCChain:
+    def __init__(self):
+        self.qubit_id_counter = -1
+        self.user_qubits = {}
+        self.wallet_addresses = set()
+        self.backend = Aer.get_backend('qasm_simulator')
+        self.sold_qubits = set()
+
+    def generate_wallet(self):
+        wallet_id = len(self.wallet_addresses) + 1
+        wallet_address = f"wallet_{wallet_id}"
+        self.wallet_addresses.add(wallet_address)
+        return wallet_address
+
+    def mine_qubit(self, qubit_state):
+        qubit_id = self.qubit_id_counter + 1
+        wallet_address = self.generate_wallet()
+
+        # Your dynamic matrix operations here
+        matrix = dynamic_matrix_operations(qubit_state)
+
+        # Rest of your qubit mining logic
+        circuit = QuantumCircuit(1)
+        for row in matrix:
+            for gate in row:
+                if gate == 'H':
+                    circuit.h(0)
+                elif gate == 'X':
+                    circuit.x(0)
+                elif gate == 'Z':
+                    circuit.z(0)
+                # Add more gate conditions as needed
+
+        circuit.measure_all()
+
+        job = execute(circuit, self.backend, shots=1)
+        result = job.result()
+        counts = result.get_counts(circuit)
+        qubit_state = list(counts.keys())[0]
+
+        hashed_qubit_state = hashlib.sha256(qubit_state.encode('utf-8')).hexdigest()
+
+        if wallet_address not in self.user_qubits:
+            self.user_qubits[wallet_address] = []
+
+        mined_qubit = {
+            'qubit_id': qubit_id,
+            'hashed_qubit_state': hashed_qubit_state,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        self.user_qubits[wallet_address].append(mined_qubit)
+
+        self.qubit_id_counter += 1
+
+        return qubit_id, hashed_qubit_state, wallet_address
+
+# Define Blockchain classes and functions
+class Block:
+    def __init__(self, timestamp, data, previous_hash):
+        self.timestamp = timestamp
+        self.data = data
+        self.previous_hash = previous_hash
+        self.nonce = 0  # Proof of Work nonce
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        sha256 = hashlib.sha256()
+        sha256.update((str(self.timestamp) + str(self.data) + str(self.previous_hash) + str(self.nonce)).encode('utf-8'))
+        return sha256.hexdigest()
+
+class Blockchain:
+    def __init__(self):
+        self.chain = [self.create_genesis_block()]
+        self.difficulty = 4  # Proof of Work difficulty
+
+    def create_genesis_block(self):
+        return Block(datetime.now(), "Genesis Block", "0")
+
+    def add_block(self, new_block):
+        new_block.previous_hash = self.get_latest_block().hash
+        new_block.hash = new_block.calculate_hash()
+        self.proof_of_work(new_block)  # Add Proof of Work
+        self.chain.append(new_block)
+
+    def get_latest_block(self):
+        return self.chain[-1]
+
+    def is_chain_valid(self):
+        for i in range(1, len(self.chain)):
+            current_block = self.chain[i]
+            previous_block = self.chain[i-1]
+
+            if current_block.hash != current_block.calculate_hash():
+                print(f"Block {i} hash mismatch!")
+                return False
+
+            if current_block.previous_hash != previous_block.hash:
+                print(f"Block {i} previous hash mismatch!")
+                return False
+
+        print("Blockchain is valid.")
+        return True
+
+    def detect_tampering(self):
+        for i in range(1, len(self.chain)):
+            current_block = self.chain[i]
+            previous_block = self.chain[i-1]
+            if current_block.previous_hash != previous_block.hash:
+                print(f"Block {i} has been tampered with!")
+
+    def proof_of_work(self, block):
+        while block.hash[:self.difficulty] != "0" * self.difficulty:
+            block.nonce += 1
+            block.hash = block.calculate_hash()
+
+# Placeholder for dynamic matrix operations
+def dynamic_matrix_operations(qubit_state):
+    # Implement your dynamic matrix operations here
+    # Replace this with the actual logic
+    matrix = [
+        ['H', 'X', 'H'],
+        ['Y', 'Z', 'Y'],
+        ['H', 'X', 'H']
+    ]
+    return matrix
+
+# Run the main program
+if __name__ == "__main__":
+    qc_chain = QCChain()
+    blockchain = Blockchain()
+
+    # Mining qubits
+    qubit_id, hashed_qubit_state, wallet_address = qc_chain.mine_qubit("0")
+
+    # Creating blockchain blocks
+    num_blocks = 5
+    for _ in range(num_blocks):
+        new_block = Block(datetime.now(), f"Block Data {_}", blockchain.get_latest_block().hash)
+        blockchain.add_block(new_block)
+
+    # Validating blockchain
+    print("Is Blockchain Valid?", blockchain.is_chain_valid())
+
+    # Detecting tampering
+    blockchain.detect_tampering()
+
+    # Printing mined qubits
+    for wallet, qubits in qc_chain.user_qubits.items():
+        print(f"Wallet: {wallet}")
+        for qubit in qubits:
+            print(f"Qubit ID: {qubit['qubit_id']}, Hashed Qubit State: {qubit['hashed_qubit_state']}, Timestamp: {qubit['timestamp']}")
+
+    # Printing blockchain
+    for block in blockchain.chain:
+        print(f"Block Hash: {block.hash}")
